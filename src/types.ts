@@ -72,3 +72,7 @@ export type FeatureDef = {
 export enum PromptIndex {
   GitBranch = 0,
 }
+
+export enum EnvVariableKey {
+  OpenAiApiKey = "OPENAI_API_KEY",
+}

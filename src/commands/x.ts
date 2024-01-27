@@ -3,7 +3,7 @@ import LineBuffer from "../lineBuffer.js";
 import { Command, CommandDef, LogLevel } from "../types.js";
 import { Helper, extractLines } from "../util.js";
 
-const e: Command = (args) => {
+const x: Command = (args) => {
   // TODO: Need an argument parser library, as well as a way to validate arguments.
   if (args.length === 0) {
     return Helper.nothing;
@@ -37,6 +37,6 @@ const e: Command = (args) => {
 };
 
 export default {
-  execute: e,
+  execute: x,
   description: "Execute an external command.",
 } satisfies CommandDef;

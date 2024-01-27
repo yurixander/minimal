@@ -167,7 +167,7 @@ rl.on("line", async (input) => {
   const response = new LineBuffer();
 
   if (command === undefined) {
-    response.push(`Unknown command: ${commandName}`);
+    response.push(`Unknown command: ${commandName}`, LogLevel.Error);
   } else {
     response.extend(await executeCommand(command, args));
   }
