@@ -45,18 +45,15 @@ abstract class Output {
   }
 
   static getColorFromLogLevel(logLevel: LogLevel): LogColor {
-    switch (logLevel) {
-      case LogLevel.Info:
-        return "gray";
-      case LogLevel.Warning:
-        return "yellow";
-      case LogLevel.Error:
-        return "red";
-      case LogLevel.Verbose:
-        return "gray";
-      case LogLevel.Debug:
-        return "magenta";
-    }
+    return (
+      {
+        [LogLevel.Info]: "gray",
+        [LogLevel.Warning]: "yellow",
+        [LogLevel.Error]: "red",
+        [LogLevel.Verbose]: "gray",
+        [LogLevel.Debug]: "magenta",
+      } satisfies Record<LogLevel, LogColor>
+    )[logLevel];
   }
 
   static colorize(text: string, color: LogColor): string {
