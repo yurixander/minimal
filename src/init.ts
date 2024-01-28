@@ -1,4 +1,4 @@
-import { CommandDef, Feature, FeatureDef } from "./types.js";
+import { CommandDef, FeatureDef, FeatureListener } from "./types.js";
 
 export function createCommandMap(
   commands: CommandDef[]
@@ -12,8 +12,10 @@ export function createCommandMap(
   return map;
 }
 
-export function createFeatureMap(features: FeatureDef[]): Map<string, Feature> {
-  const map = new Map<string, Feature>();
+export function createFeatureMap(
+  features: FeatureDef[]
+): Map<string, FeatureListener> {
+  const map = new Map<string, FeatureListener>();
 
   for (const feature of features) {
     map.set(feature.listener.name, feature.listener);

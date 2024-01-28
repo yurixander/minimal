@@ -1,27 +1,10 @@
+import { ConfigKey, JsonValue, RuntimeType, StaticType } from "./config.js";
 import {
   INITIAL_CONTEXT,
   ROOT_PROMPT,
   TEXT_BEAUTIFY_MAX_SENTENCE_LENGTH,
 } from "./constants.js";
-import LineBuffer from "./lineBuffer.js";
-import { EnvVariableKey, LogLevel } from "./types.js";
-
-export abstract class Helper {
-  static error(message: string): [LineBuffer] {
-    const response = new LineBuffer();
-
-    response.pushWithDefaults({
-      text: message,
-      logLevel: LogLevel.Error,
-    });
-
-    return [response];
-  }
-
-  static get nothing(): [LineBuffer] {
-    return [LineBuffer.empty];
-  }
-}
+import { EnvVariableKey } from "./types.js";
 
 export function extractLines(string: string): string[] {
   return string
@@ -76,7 +59,9 @@ export function joinSegments(segments: string[]): string | null {
 }
 
 export function beautifyText(text: string): string[] {
-  const words = text.split(" ");
+  // FIXME: Ensure that new lines are actually shown in new lines.
+  const words = text.split("\n").join(" ").split(" ");
+
   const sentences: string[] = [];
   const currentSentence: string[] = [];
 
@@ -95,4 +80,54 @@ export function beautifyText(text: string): string[] {
   }
 
   return sentences;
+}
+
+export function ensureError(possibleError: unknown): Error {
+  if (possibleError instanceof Error) {
+    return possibleError;
+  }
+
+  return new Error(
+    `Unknown error because the error object was not an Error (type was ${typeof possibleError})`
+  );
+}
+
+export function autoParse(serializedValue: string): JsonValue {
+  const number = Number(serializedValue);
+
+  if (!Number.isNaN(number)) {
+    return number;
+  }
+
+  const boolean: boolean | null =
+    serializedValue === "true"
+      ? true
+      : serializedValue === "false"
+      ? false
+      : null;
+
+  if (boolean !== null) {
+    return boolean;
+  }
+
+  return serializedValue;
+}
+
+export function isConfigKey(key: string): key is ConfigKey {
+  return Object.values(ConfigKey).includes(key as ConfigKey);
+}
+
+export function isOfType<T extends RuntimeType>(
+  value: unknown,
+  type: T
+): value is StaticType<T> {
+  if (type === "string") {
+    return typeof value === "string";
+  } else if (type === "number") {
+    return typeof value === "number";
+  } else if (type === "boolean") {
+    return typeof value === "boolean";
+  }
+
+  return false;
 }

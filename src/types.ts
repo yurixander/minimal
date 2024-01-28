@@ -1,5 +1,5 @@
 import { ChalkInstance } from "chalk";
-import LineBuffer from "./lineBuffer.js";
+import { Context } from "./context.js";
 
 type SimpleChalkColor<T extends keyof ChalkInstance> =
   ChalkInstance[T] extends (text: string) => string ? T : never;
@@ -28,24 +28,25 @@ export enum LineVariant {
   ListHeader,
 }
 
+export enum Namespace {
+  Config = "config",
+  Storage = "storage",
+}
+
 export type Line = TextChunk & {
+  namespace?: Namespace;
   variant: LineVariant;
+  preserveColor?: boolean;
 };
 
 export type LineOverrides = Partial<Line> & { text: string };
-
-export type Context = {
-  workingDirectory: string;
-  logLevel: LogLevel;
-  prompt: string[];
-};
 
 type PromiseOr<T> = T | Promise<T>;
 
 export type Command = (
   args: string[],
   context: Context
-) => PromiseOr<[LineBuffer, Context?]>;
+) => PromiseOr<Context | void>;
 
 export type CommandDef = {
   execute: Command;
@@ -58,15 +59,26 @@ export enum AppEvent {
   PromptChanged,
 }
 
-export type Feature = (
+export type FeatureListener = (
   event: AppEvent,
   context: Context,
   previousContext: Context
 ) => PromiseOr<Context | void>;
 
+export type FeatureIntercept = (
+  commandName: string,
+  args: string[],
+  context: Context
+) => void;
+
+export type FeatureInit = (context: Context) => PromiseOr<void>;
+
 export type FeatureDef = {
   description: string;
-  listener: Feature;
+  listener: FeatureListener;
+  intercept?: FeatureIntercept;
+  init?: FeatureInit;
+  awaitInit?: boolean;
 };
 
 export enum PromptIndex {
@@ -74,5 +86,6 @@ export enum PromptIndex {
 }
 
 export enum EnvVariableKey {
+  Path = "PATH",
   OpenAiApiKey = "OPENAI_API_KEY",
 }

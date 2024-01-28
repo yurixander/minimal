@@ -4,14 +4,14 @@ import {
   HACKERNEWS_TOP_STORIES_ENDPOINT,
   SPLASH_NEWS_COUNT,
 } from "../constants.js";
-import LineBuffer from "../lineBuffer.js";
-import { Command, CommandDef } from "../types.js";
+import Output from "../output.js";
+import { Command, CommandDef, LineVariant } from "../types.js";
 
-interface NewsStory {
+type NewsStory = {
   id: number;
   title: string;
   url: string;
-}
+};
 
 async function fetchDeveloperHeadlines(): Promise<string[]> {
   try {
@@ -42,10 +42,9 @@ async function fetchDeveloperHeadlines(): Promise<string[]> {
 
 const splash: Command = async () => {
   const username = os.userInfo().username;
-  const response = new LineBuffer();
   const time = new Date().toLocaleTimeString();
 
-  response.pushWithDefaults({
+  Output.write({
     text: `${username} is using minimal @ ${time}`,
     color: "white",
   });
@@ -53,12 +52,11 @@ const splash: Command = async () => {
   const newsHeadlines = await fetchDeveloperHeadlines();
 
   for (const headline of newsHeadlines) {
-    response.pushListItem({
+    Output.write({
       text: headline,
+      variant: LineVariant.ListItem,
     });
   }
-
-  return [response];
 };
 
 export default {

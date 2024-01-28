@@ -1,8 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import LineBuffer from "../lineBuffer.js";
+import Output from "../output.js";
 import { Command, CommandDef } from "../types.js";
-import { Helper } from "../util.js";
 
 const cd: Command = (_args, context) => {
   const { workingDirectory } = context;
@@ -13,23 +12,23 @@ const cd: Command = (_args, context) => {
   try {
     stats = fs.statSync(nextWorkingDirectory);
   } catch (_error) {
-    return Helper.error(`${nextWorkingDirectory} does not exist`);
+    Output.error(`${nextWorkingDirectory} does not exist`);
+
+    return;
   }
 
   if (!stats.isDirectory()) {
-    return Helper.error(`${nextWorkingDirectory} is not a directory.`);
+    Output.error(`${nextWorkingDirectory} is not a directory.`);
+
+    return;
   }
 
   // REVIEW: Investigate where to place this, whether to do it in this command, or automatically detect it in the main loop.
   process.chdir(nextWorkingDirectory);
 
-  return [
-    LineBuffer.empty,
-    {
-      ...context,
-      workingDirectory: nextWorkingDirectory,
-    },
-  ];
+  return context.with({
+    workingDirectory: nextWorkingDirectory,
+  });
 };
 
 export default {

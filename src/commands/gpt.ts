@@ -1,82 +1,140 @@
 import OpenAI from "openai";
-import { GPT_SYSTEM_PROMPT } from "../constants.js";
-import LineBuffer from "../lineBuffer.js";
-import { Command, CommandDef, EnvVariableKey, LogLevel } from "../types.js";
-import { Helper, beautifyText, getEnvVariable, joinSegments } from "../util.js";
+import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
+import Config, { ConfigKey } from "../config.js";
+import {
+  GPT_MAX_MESSAGE_HISTORY_LENGTH,
+  GPT_SYSTEM_PROMPT,
+  TEXT_BEAUTIFY_MAX_SENTENCE_LENGTH,
+} from "../constants.js";
+import Output from "../output.js";
+import Storage from "../storage.js";
+import {
+  Command,
+  CommandDef,
+  EnvVariableKey,
+  LineVariant,
+  LogLevel,
+} from "../types.js";
+import { getEnvVariable, joinSegments } from "../util.js";
 
-async function fetchGptResponse(
+// TODO: Use Storage API instead of global state.
+const messageHistory: ChatCompletionMessageParam[] = [
+  // TODO: Add the argument/option to specify a custom system prompt for the user.
+  // FIXME: When the message history limit is exceeded, this prompt message is removed from the history. This is not ideal, as it should be kept in the history, and the oldest message should be removed instead.
+  {
+    role: "system",
+    content: GPT_SYSTEM_PROMPT,
+  },
+];
+
+// TODO: Need a timeout system for data fetching. Perhaps even better would be an entire tiny framework for handling async data fetching, with timeouts, retries, and other features, that are all automatically handled by the framework and inform the user.
+async function streamGptResponse(
   openai: OpenAI,
   prompt: string
-): Promise<string | Error> {
-  try {
-    const response = await openai.chat.completions.create({
-      // TODO: Make this configurable via arguments.
-      model: "gpt-3.5-turbo",
-      max_tokens: 150,
-      messages: [
-        {
-          role: "system",
-          content: GPT_SYSTEM_PROMPT,
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
+): Promise<Error | void> {
+  const newMessage: ChatCompletionMessageParam = {
+    role: "user",
+    content: prompt,
+  };
 
-    const responseContent = response.choices[0].message.content;
+  const maxMessageHistoryLength = Storage.getOrDefault(
+    "gpt",
+    "maxMessageHistoryLength",
+    GPT_MAX_MESSAGE_HISTORY_LENGTH,
+    "number"
+  );
 
-    // TODO: Proper error handling.
-    if (responseContent === null) {
-      return new Error("No response returned from OpenAI");
-    }
-
-    return responseContent;
-  } catch (error) {
-    console.error("Error fetching response from OpenAI:", error);
+  // Limit the message history to a certain length.
+  if (messageHistory.length >= maxMessageHistoryLength) {
+    messageHistory.shift();
   }
 
-  return new Error("Error fetching response from OpenAI");
+  messageHistory.push(newMessage);
+
+  // TODO: Give this an appropriate type.
+  const model = Config.read(ConfigKey.GptModel, "string");
+
+  const maxTokens = Config.read(ConfigKey.GptMaxTokens, "number");
+
+  // TODO: Error handling.
+  const stream = await openai.chat.completions.create({
+    stream: true,
+    model,
+    // TODO: Add cutoff '...' to the end of the output if it exceeds the max tokens.
+    max_tokens: maxTokens,
+    messages: messageHistory,
+  });
+
+  let isFirstChunk = true;
+  let chunkCount = 0;
+  let chunks: string[] = [];
+
+  // TODO: Abstract this into a function, such as `streamTextChunks` for `Output`.
+  for await (const chunk of stream) {
+    const textChunk = chunk.choices[0]?.delta?.content || null;
+
+    if (textChunk === null) {
+      continue;
+    } else if (isFirstChunk) {
+      isFirstChunk = false;
+      Output.writeRaw(Output.getLineVariantPrefix(LineVariant.ListItem));
+    }
+    // TODO: This isn't actually counting words, but instead chunks. Find a way to count words instead.
+    else if (chunkCount > TEXT_BEAUTIFY_MAX_SENTENCE_LENGTH) {
+      Output.newLine();
+      Output.writeRaw(Output.getLineVariantPrefix(LineVariant.ListItem));
+      chunkCount = 0;
+    }
+
+    Output.writeRaw(
+      Output.colorize(textChunk, Output.getColorFromLogLevel(LogLevel.Info))
+    );
+
+    chunkCount += 1;
+    chunks.push(textChunk);
+  }
+
+  // TODO: Account for max message history length. Might need some custom data structure to abstract this, perhaps a queue with a max length.
+  // Save the response in the message history.
+  messageHistory.push({
+    role: "system",
+    content: chunks.join(""),
+  });
+
+  Output.newLine();
 }
 
 // CONSIDER: Add ability for GPT to execute commands, with the user's approval. Or even, make it automatic via an argument. Or perhaps do both: Automatic command selection & execution via an argument/option, and the ability for GPT to select & execute commands via functions.
-const gpt: Command = async (args, context) => {
+const gpt: Command = async (args) => {
   const apiKey = getEnvVariable(EnvVariableKey.OpenAiApiKey);
   const prompt = joinSegments(args);
 
   if (apiKey === null) {
     // CONSIDER: Ask for this on-demand, via a prompt.
-    return Helper.error(
+    Output.error(
       `Please set the '${EnvVariableKey.OpenAiApiKey}' environment variable`
     );
+
+    return;
   } else if (prompt === null) {
-    return Helper.error("Please provide a prompt");
+    Output.error("Please provide a prompt");
+
+    return;
   }
 
-  const openai = new OpenAI({
+  // TODO: Need to maintain context between calls to this command, and add an argument/option to reset the context. Need an API to handle persistent contexts like that, in a functional way.
+  let openai = new OpenAI({
     apiKey,
   });
 
-  const gptResponse = await fetchGptResponse(openai, prompt);
-  const response = new LineBuffer();
+  const gptResponse = await streamGptResponse(openai, prompt);
 
   if (gptResponse instanceof Error) {
-    response.pushWithDefaults({
+    Output.write({
       text: gptResponse.message,
       logLevel: LogLevel.Error,
     });
-  } else {
-    const lines = beautifyText(gptResponse);
-
-    for (const line of lines) {
-      response.pushListItem({
-        text: line,
-      });
-    }
   }
-
-  return [response];
 };
 
 export default {
