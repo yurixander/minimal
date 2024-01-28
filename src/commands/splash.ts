@@ -1,5 +1,6 @@
 import axios from "axios";
 import * as os from "node:os";
+import Config, { ConfigKey } from "../config.js";
 import {
   HACKERNEWS_TOP_STORIES_ENDPOINT,
   SPLASH_NEWS_COUNT,
@@ -48,6 +49,12 @@ const splash: Command = async () => {
     text: `${username} is using minimal @ ${time}`,
     color: "white",
   });
+
+  const doFetchHeadlines = Config.read(ConfigKey.SplashFetchNews, "boolean");
+
+  if (!doFetchHeadlines) {
+    return;
+  }
 
   const newsHeadlines = await fetchDeveloperHeadlines();
 

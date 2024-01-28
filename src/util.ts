@@ -4,7 +4,8 @@ import {
   ROOT_PROMPT,
   TEXT_BEAUTIFY_MAX_SENTENCE_LENGTH,
 } from "./constants.js";
-import { EnvVariableKey } from "./types.js";
+import Output from "./output.js";
+import { EnvVariableKey, LineVariant, LogLevel } from "./types.js";
 
 export function extractLines(string: string): string[] {
   return string
@@ -130,4 +131,36 @@ export function isOfType<T extends RuntimeType>(
   }
 
   return false;
+}
+
+export async function safelyTry<T>(fn: () => T, defaultValue: T): Promise<T> {
+  try {
+    return await fn();
+  } catch (possibleError: unknown) {
+    const error = ensureError(possibleError);
+
+    Output.write({
+      text: `An internal error occurred: ${error.message}`,
+      variant: LineVariant.ListHeader,
+      logLevel: LogLevel.Debug,
+    });
+
+    if (error.stack !== undefined) {
+      const stackLines = error.stack
+        .split("\n")
+        .slice(1)
+        .map((line) => line.trim().slice(2).trim())
+        .map((line) => `@ ${line}`);
+
+      for (const stackLine of stackLines) {
+        Output.write({
+          text: stackLine,
+          logLevel: LogLevel.Debug,
+          variant: LineVariant.ListItem,
+        });
+      }
+    }
+
+    return defaultValue;
+  }
 }

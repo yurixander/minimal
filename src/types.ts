@@ -31,6 +31,7 @@ export enum LineVariant {
 export enum Namespace {
   Config = "config",
   Storage = "storage",
+  Boot = "boot",
 }
 
 export type Line = TextChunk & {
@@ -71,13 +72,13 @@ export type FeatureIntercept = (
   context: Context
 ) => void;
 
-export type FeatureInit = (context: Context) => PromiseOr<void>;
+export type FeatureInitializer = (context: Context) => PromiseOr<boolean>;
 
 export type FeatureDef = {
   description: string;
   listener: FeatureListener;
   intercept?: FeatureIntercept;
-  init?: FeatureInit;
+  initializer?: FeatureInitializer;
   awaitInit?: boolean;
 };
 

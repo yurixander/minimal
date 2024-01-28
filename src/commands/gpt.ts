@@ -104,6 +104,7 @@ async function streamGptResponse(
   Output.newLine();
 }
 
+// CONSIDER: Initializing GPT messages with a list of all the commands and their output so far, so it has more context. Perhaps this would require a `GptProvider` feature with an interceptor to go along with this command, which may use the `Storage` API to store the messages.
 // CONSIDER: Add ability for GPT to execute commands, with the user's approval. Or even, make it automatic via an argument. Or perhaps do both: Automatic command selection & execution via an argument/option, and the ability for GPT to select & execute commands via functions.
 const gpt: Command = async (args) => {
   const apiKey = getEnvVariable(EnvVariableKey.OpenAiApiKey);

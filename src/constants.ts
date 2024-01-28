@@ -40,6 +40,7 @@ export const DEFAULT_CONFIG: ConfigContents = {
   // TODO: Give this an appropriate type.
   gptModel: "gpt-4-turbo-preview",
   gptMaxTokens: 200,
+  splashFetchHeadlines: true,
 };
 
 // CONSIDER: Having this be part of the config itself.
@@ -49,3 +50,5 @@ export const CONFIG_FILE_NAME = `${APP_NAME}.config.json`;
 export const CONFIG_FILE_PATH = lazy(() =>
   path.join(CACHE_PATH, CONFIG_FILE_NAME)
 );
+
+export const PATH_FILE_ITERATION_WARNING_THRESHOLD = 20_000;

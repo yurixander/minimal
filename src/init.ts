@@ -1,4 +1,13 @@
-import { CommandDef, FeatureDef, FeatureListener } from "./types.js";
+import { Context } from "./context.js";
+import Output from "./output.js";
+import {
+  CommandDef,
+  FeatureDef,
+  FeatureListener,
+  LogLevel,
+  Namespace,
+} from "./types.js";
+import { safelyTry } from "./util.js";
 
 export function createCommandMap(
   commands: CommandDef[]
@@ -12,12 +21,31 @@ export function createCommandMap(
   return map;
 }
 
-export function createFeatureMap(
+export async function initializeFeatures(
+  initialContext: Context,
   features: FeatureDef[]
-): Map<string, FeatureListener> {
+): Promise<Map<string, FeatureListener>> {
   const map = new Map<string, FeatureListener>();
 
   for (const feature of features) {
+    const didInitialize = await safelyTry(
+      async () =>
+        feature.initializer !== undefined
+          ? await feature.initializer(initialContext)
+          : true,
+      Promise.resolve(false)
+    );
+
+    if (!didInitialize) {
+      Output.write({
+        text: `Feature '${feature.listener.name}' failed to initialize`,
+        logLevel: LogLevel.Warning,
+        namespace: Namespace.Boot,
+      });
+
+      continue;
+    }
+
     map.set(feature.listener.name, feature.listener);
   }
 

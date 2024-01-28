@@ -14,7 +14,7 @@ import {
 } from "./constants.js";
 import git from "./features/git.js";
 import passthrough from "./features/passthrough.js";
-import { createCommandMap, createFeatureMap } from "./init.js";
+import { createCommandMap, initializeFeatures } from "./init.js";
 import Output from "./output.js";
 import { AppEvent, CommandDef, LogLevel } from "./types.js";
 import { lazy, renderPrompt } from "./util.js";
@@ -28,10 +28,7 @@ const rl = readline.createInterface({
 let context = INITIAL_CONTEXT.clone();
 
 const commands = lazy(() => createCommandMap([l, x, splash, cd, gpt, cfg]));
-const features = lazy(() => createFeatureMap([git, passthrough]));
-
-// Initialize the prompt.
-rl.setPrompt(renderPrompt(context.prompt));
+const features = await initializeFeatures(context, [git, passthrough]);
 
 const executeCommand = async (command: CommandDef, args: string[]) => {
   // TODO: Graciously handle command & feature executing errors, show appropriate debug information, and beautify error stack traces, as well as report the name of the command or feature that failed.
@@ -69,7 +66,7 @@ const executeCommand = async (command: CommandDef, args: string[]) => {
 
     eventQueue.delete(currentEvent);
 
-    for (const [_name, listener] of features()) {
+    for (const [_name, listener] of features) {
       const postFeatureContext = await listener(
         currentEvent,
         _.cloneDeep(previousContext),
@@ -143,4 +140,5 @@ rl.on("line", async (input) => {
 
 // Initialization.
 await executeCommand(splash, []);
+rl.setPrompt(renderPrompt(context.prompt));
 rl.prompt();

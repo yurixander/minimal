@@ -8,6 +8,7 @@ export enum ConfigKey {
   StorageBasePath = "storageBasePath",
   GptModel = "gptModel",
   GptMaxTokens = "gptMaxTokens",
+  SplashFetchNews = "splashFetchHeadlines",
 }
 
 export type JsonValue = string | number | boolean;
