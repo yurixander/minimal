@@ -9,18 +9,18 @@ import {
   PromptIndex,
 } from "../types.js";
 
-const git: FeatureListener = async (event, context) => {
+const git: FeatureListener = async (event, state) => {
   if (event !== AppEvent.WorkingDirectoryChanged) {
     return;
   }
 
-  const git = simpleGit(context.workingDirectory);
-  const nextContext = _.cloneDeep(context);
+  const git = simpleGit(state.workingDirectory);
+  const nextState = _.cloneDeep(state);
 
   if (!(await git.checkIsRepo())) {
-    delete nextContext.prompt[PromptIndex.GitBranch];
+    delete nextState.prompt[PromptIndex.GitBranch];
 
-    return nextContext;
+    return nextState;
   }
 
   const repoName = path.basename(await git.revparse(["--show-toplevel"]));
@@ -33,9 +33,9 @@ const git: FeatureListener = async (event, context) => {
     `${chalk.green(repoName)}(${chalk.blue(branchName)})`
   );
 
-  nextContext.prompt[PromptIndex.GitBranch] = promptSegment;
+  nextState.prompt[PromptIndex.GitBranch] = promptSegment;
 
-  return nextContext;
+  return nextState;
 };
 
 export default {

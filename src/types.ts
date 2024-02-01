@@ -1,5 +1,5 @@
 import { ChalkInstance } from "chalk";
-import { Context } from "./context.js";
+import { State } from "./state.js";
 
 type SimpleChalkColor<T extends keyof ChalkInstance> =
   ChalkInstance[T] extends (text: string) => string ? T : never;
@@ -34,20 +34,22 @@ export enum Namespace {
   Boot = "boot",
 }
 
+export type Emoji = "🤔";
+
 export type Line = TextChunk & {
   namespace?: Namespace;
   variant: LineVariant;
   preserveColor?: boolean;
+  emoji?: Emoji;
+  clip?: boolean;
+  suffixes?: string[];
 };
 
 export type LineOverrides = Partial<Line> & { text: string };
 
 type PromiseOr<T> = T | Promise<T>;
 
-export type Command = (
-  args: string[],
-  context: Context
-) => PromiseOr<Context | void>;
+export type Command = (args: string[], state: State) => PromiseOr<State | void>;
 
 export type CommandDef = {
   execute: Command;
@@ -62,17 +64,17 @@ export enum AppEvent {
 
 export type FeatureListener = (
   event: AppEvent,
-  context: Context,
-  previousContext: Context
-) => PromiseOr<Context | void>;
+  state: State,
+  previousState: State
+) => PromiseOr<State | void>;
 
 export type FeatureIntercept = (
   commandName: string,
   args: string[],
-  context: Context
+  state: State
 ) => void;
 
-export type FeatureInitializer = (context: Context) => PromiseOr<boolean>;
+export type FeatureInitializer = (state: State) => PromiseOr<boolean>;
 
 export type FeatureDef = {
   description: string;

@@ -1,11 +1,9 @@
+import assert from "node:assert";
 import { ConfigKey, JsonValue, RuntimeType, StaticType } from "./config.js";
-import {
-  INITIAL_CONTEXT,
-  ROOT_PROMPT,
-  TEXT_BEAUTIFY_MAX_SENTENCE_LENGTH,
-} from "./constants.js";
+import { INITIAL_STATE, ROOT_PROMPT } from "./constants.js";
 import Output from "./output.js";
 import { EnvVariableKey, LineVariant, LogLevel } from "./types.js";
+import * as fs from "node:fs";
 
 export function extractLines(string: string): string[] {
   return string
@@ -17,7 +15,7 @@ export function extractLines(string: string): string[] {
 export function renderPrompt(prompt: string[]): string {
   const promptWithInitial = [
     ...ROOT_PROMPT,
-    ...INITIAL_CONTEXT.prompt,
+    ...INITIAL_STATE.prompt,
     ...prompt,
   ];
 
@@ -57,30 +55,6 @@ export function joinSegments(segments: string[]): string | null {
     .join(" ");
 
   return result === "" ? null : result;
-}
-
-export function beautifyText(text: string): string[] {
-  // FIXME: Ensure that new lines are actually shown in new lines.
-  const words = text.split("\n").join(" ").split(" ");
-
-  const sentences: string[] = [];
-  const currentSentence: string[] = [];
-
-  for (const word of words) {
-    currentSentence.push(word);
-
-    if (currentSentence.length >= TEXT_BEAUTIFY_MAX_SENTENCE_LENGTH) {
-      sentences.push(currentSentence.join(" "));
-      currentSentence.length = 0;
-    }
-  }
-
-  // Push the last sentence, if it exists.
-  if (currentSentence.length > 0) {
-    sentences.push(currentSentence.join(" "));
-  }
-
-  return sentences;
 }
 
 export function ensureError(possibleError: unknown): Error {
@@ -163,4 +137,30 @@ export async function safelyTry<T>(fn: () => T, defaultValue: T): Promise<T> {
 
     return defaultValue;
   }
+}
+
+export function tryOrDefault<T>(action: () => T, defaultValue: T): T {
+  try {
+    return action();
+  } catch {
+    return defaultValue;
+  }
+}
+
+export function canAccessPath(path: string) {
+  return tryOrDefault(() => {
+    fs.accessSync(path, fs.constants.R_OK);
+
+    return true;
+  }, false);
+}
+
+export function clipString(string: string, maxLength: number): string {
+  assert(maxLength >= 4, "Max length should be at least 4 characters");
+
+  if (string.length <= maxLength) {
+    return string;
+  }
+
+  return string.slice(0, maxLength - 3) + "...";
 }

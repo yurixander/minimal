@@ -1,17 +1,17 @@
 import { LogLevel } from "./types.js";
 
-export type ContextOpts = {
+export type StateOpts = {
   workingDirectory: string;
   logLevel: LogLevel;
   prompt: string[];
 };
 
-export class Context {
+export class State {
   readonly workingDirectory: string;
   readonly logLevel: LogLevel;
   readonly prompt_: string[];
 
-  constructor(opts: ContextOpts) {
+  constructor(opts: StateOpts) {
     this.workingDirectory = opts.workingDirectory;
     this.logLevel = opts.logLevel;
     this.prompt_ = opts.prompt;
@@ -21,8 +21,8 @@ export class Context {
     return [...this.prompt_];
   }
 
-  with(opts: Partial<ContextOpts>): Context {
-    return new Context({
+  with(opts: Partial<StateOpts>): State {
+    return new State({
       workingDirectory: opts.workingDirectory ?? this.workingDirectory,
       logLevel: opts.logLevel ?? this.logLevel,
       prompt: opts.prompt ?? this.prompt,
@@ -30,7 +30,7 @@ export class Context {
     });
   }
 
-  clone(): Context {
+  clone(): State {
     return this.with({});
   }
 }

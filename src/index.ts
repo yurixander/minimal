@@ -9,8 +9,8 @@ import splash from "./commands/splash.js";
 import x from "./commands/x.js";
 import {
   EVENT_DELTA_POINTS,
-  INITIAL_CONTEXT,
-  MAX_CONTEXT_ITERATIONS,
+  INITIAL_STATE,
+  MAX_STATE_TRANSITIONS,
 } from "./constants.js";
 import git from "./features/git.js";
 import passthrough from "./features/passthrough.js";
@@ -19,36 +19,32 @@ import Output from "./output.js";
 import { AppEvent, CommandDef, LogLevel } from "./types.js";
 import { lazy, renderPrompt } from "./util.js";
 
-const rl = readline.createInterface({
+export const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
   tabSize: 2,
 });
 
-let context = INITIAL_CONTEXT.clone();
-
+let state = INITIAL_STATE.clone();
 const commands = lazy(() => createCommandMap([l, x, splash, cd, gpt, cfg]));
-const features = await initializeFeatures(context, [git, passthrough]);
+const features = await initializeFeatures(state, [git, passthrough]);
 
 const executeCommand = async (command: CommandDef, args: string[]) => {
   // TODO: Graciously handle command & feature executing errors, show appropriate debug information, and beautify error stack traces, as well as report the name of the command or feature that failed.
 
-  const preCommandContext = context.clone();
+  const preCommandState = state.clone();
 
-  let postCommandContext = await command.execute(
-    [...args],
-    _.cloneDeep(context)
-  );
+  let postCommandState = await command.execute([...args], _.cloneDeep(state));
 
-  // A context transition did not occur.
-  if (postCommandContext === undefined) {
+  // A state transition did not occur.
+  if (postCommandState === undefined) {
     return;
   }
 
   const eventQueue: Set<AppEvent> = new Set();
 
   for (const [key, event] of EVENT_DELTA_POINTS) {
-    if (!isDeepStrictEqual(preCommandContext[key], postCommandContext[key])) {
+    if (!isDeepStrictEqual(preCommandState[key], postCommandState[key])) {
       eventQueue.add(event);
     }
   }
@@ -57,7 +53,7 @@ const executeCommand = async (command: CommandDef, args: string[]) => {
   // features are implemented incorrectly.
   let iterationCount = 0;
 
-  let previousContext = _.cloneDeep(postCommandContext);
+  let previousState = _.cloneDeep(postCommandState);
 
   // REVISE: Simplify this logic. There's some repetition here.
   while (eventQueue.size > 0) {
@@ -67,18 +63,18 @@ const executeCommand = async (command: CommandDef, args: string[]) => {
     eventQueue.delete(currentEvent);
 
     for (const [_name, listener] of features) {
-      const postFeatureContext = await listener(
+      const postFeatureState = await listener(
         currentEvent,
-        _.cloneDeep(previousContext),
-        _.cloneDeep(context)
+        _.cloneDeep(previousState),
+        _.cloneDeep(state)
       );
 
-      if (postFeatureContext !== undefined) {
-        // If the context changed, we need to re-evaluate the event queue.
+      if (postFeatureState !== undefined) {
+        // If the state changed, we need to re-evaluate the event queue.
         for (const [key, event] of EVENT_DELTA_POINTS) {
           const didChange = !isDeepStrictEqual(
-            postFeatureContext[key],
-            previousContext[key]
+            postFeatureState[key],
+            previousState[key]
           );
 
           if (didChange) {
@@ -86,12 +82,12 @@ const executeCommand = async (command: CommandDef, args: string[]) => {
           }
         }
 
-        previousContext = postFeatureContext;
+        previousState = postFeatureState;
       }
     }
 
-    // Update the global context with the latest changes.
-    context = _.cloneDeep(previousContext);
+    // Update the global state with the latest changes.
+    state = _.cloneDeep(previousState);
 
     // Detect infinite loops that may be caused from logic errors
     // on the definitions of features.
@@ -99,9 +95,9 @@ const executeCommand = async (command: CommandDef, args: string[]) => {
 
     // Gracefully exit the event loop if the maximum number of
     // iterations is exceeded.
-    if (iterationCount > MAX_CONTEXT_ITERATIONS) {
+    if (iterationCount > MAX_STATE_TRANSITIONS) {
       Output.writeSimple(
-        `Max context iteration count of ${MAX_CONTEXT_ITERATIONS} was exceeded, the last event was ${currentEvent}`,
+        `Max state transition count of ${MAX_STATE_TRANSITIONS} was exceeded, the last event was ${currentEvent}`,
         LogLevel.Debug
       );
 
@@ -110,7 +106,7 @@ const executeCommand = async (command: CommandDef, args: string[]) => {
   }
 
   // Update the prompt in case it changed.
-  rl.setPrompt(renderPrompt(context.prompt));
+  rl.setPrompt(renderPrompt(state.prompt));
 };
 
 rl.on("line", async (input) => {
@@ -130,7 +126,7 @@ rl.on("line", async (input) => {
   const command = commands().get(commandName);
 
   if (command === undefined) {
-    Output.writeSimple(`Unknown command: ${commandName}`, LogLevel.Error);
+    Output.error(`Unknown command: ${commandName}`);
   } else {
     await executeCommand(command, args);
   }
@@ -140,5 +136,5 @@ rl.on("line", async (input) => {
 
 // Initialization.
 await executeCommand(splash, []);
-rl.setPrompt(renderPrompt(context.prompt));
+rl.setPrompt(renderPrompt(state.prompt));
 rl.prompt();

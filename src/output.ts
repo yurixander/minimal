@@ -6,7 +6,9 @@ import {
   LogColor,
   LogLevel,
 } from "./types.js";
-import { joinSegments } from "./util.js";
+import { clipString, joinSegments } from "./util.js";
+import { LINE_CLIP_LENGTH } from "./constants.js";
+import assert from "assert";
 
 abstract class Output {
   private static display(line: Line, logLevel: LogLevel): void {
@@ -35,12 +37,34 @@ abstract class Output {
       ? line.text
       : this.colorize(line.text, line.color);
 
-    const segments = [namespace, variantStyle, mainContent];
-    const text = joinSegments(segments);
+    const clippedMainContent =
+      line.clip === true
+        ? clipString(mainContent, LINE_CLIP_LENGTH)
+        : mainContent;
 
-    // Avoid displaying empty lines.
-    if (text !== null) {
-      logger(text);
+    const emoji = line.emoji !== undefined ? line.emoji : "";
+
+    const suffix =
+      line.suffixes !== undefined ? joinSegments(line.suffixes) : "";
+
+    assert(
+      suffix !== null,
+      "Suffixes array should contain at least one item if it was passed as an argument"
+    );
+
+    const segments = [
+      namespace,
+      variantStyle,
+      emoji,
+      clippedMainContent,
+      suffix,
+    ];
+
+    const lineText = joinSegments(segments);
+
+    // Avoid logging empty newlines.
+    if (lineText !== null) {
+      logger(lineText);
     }
   }
 
@@ -71,14 +95,19 @@ abstract class Output {
   }
 
   static newLine(): void {
-    this.write({ text: "" });
+    this.writeRaw("\n");
   }
 
   static writeRaw(textChunk: string): void {
-    process.stdout.write(textChunk);
+    // REVIEW: Might need to manually flush the stream here, since it seems to be getting overwritten by other console logs.
+    if (process.stdout.writable) {
+      process.stdout.write(textChunk);
+    }
   }
 
   static write(overrides: LineOverrides): void {
+    // REVISE: Merge this with the `display` method.
+
     const logLevel = overrides.logLevel ?? LogLevel.Info;
 
     this.display(
@@ -98,7 +127,7 @@ abstract class Output {
   }
 
   static error(text: string): void {
-    this.write({ text, logLevel: LogLevel.Error });
+    this.write({ text, logLevel: LogLevel.Error, emoji: "🤔" });
   }
 }
 

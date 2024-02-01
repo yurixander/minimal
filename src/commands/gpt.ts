@@ -4,7 +4,7 @@ import Config, { ConfigKey } from "../config.js";
 import {
   GPT_MAX_MESSAGE_HISTORY_LENGTH,
   GPT_SYSTEM_PROMPT,
-  TEXT_BEAUTIFY_MAX_SENTENCE_LENGTH,
+  LINE_CLIP_LENGTH,
 } from "../constants.js";
 import Output from "../output.js";
 import Storage from "../storage.js";
@@ -66,7 +66,7 @@ async function streamGptResponse(
   });
 
   let isFirstChunk = true;
-  let chunkCount = 0;
+  let chunkLength = 0;
   let chunks: string[] = [];
 
   // TODO: Abstract this into a function, such as `streamTextChunks` for `Output`.
@@ -79,18 +79,18 @@ async function streamGptResponse(
       isFirstChunk = false;
       Output.writeRaw(Output.getLineVariantPrefix(LineVariant.ListItem));
     }
-    // TODO: This isn't actually counting words, but instead chunks. Find a way to count words instead.
-    else if (chunkCount > TEXT_BEAUTIFY_MAX_SENTENCE_LENGTH) {
+    // TODO: Need to find a way to handle periods, since currently it's breaking up text in a strict way.
+    else if (chunkLength > LINE_CLIP_LENGTH) {
       Output.newLine();
       Output.writeRaw(Output.getLineVariantPrefix(LineVariant.ListItem));
-      chunkCount = 0;
+      chunkLength = 0;
     }
 
     Output.writeRaw(
       Output.colorize(textChunk, Output.getColorFromLogLevel(LogLevel.Info))
     );
 
-    chunkCount += 1;
+    chunkLength += textChunk.length;
     chunks.push(textChunk);
   }
 

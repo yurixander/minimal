@@ -20,6 +20,7 @@
   "dependencies": {
     "axios": "^1.6.7",
     "chalk": "^5.3.0",
+    "filesize": "^10.1.0",
     "lodash": "^4.17.21",
     "openai": "^4.26.0",
     "simple-git": "^3.22.0"

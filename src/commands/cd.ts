@@ -3,8 +3,8 @@ import * as path from "node:path";
 import Output from "../output.js";
 import { Command, CommandDef } from "../types.js";
 
-const cd: Command = (_args, context) => {
-  const { workingDirectory } = context;
+const cd: Command = (_args, state) => {
+  const { workingDirectory } = state;
   const nextWorkingDirectory = path.join(workingDirectory, ..._args);
 
   let stats: fs.Stats;
@@ -12,7 +12,7 @@ const cd: Command = (_args, context) => {
   try {
     stats = fs.statSync(nextWorkingDirectory);
   } catch (_error) {
-    Output.error(`${nextWorkingDirectory} does not exist`);
+    Output.error(`Path does not exist: ${nextWorkingDirectory}`);
 
     return;
   }
@@ -26,7 +26,7 @@ const cd: Command = (_args, context) => {
   // REVIEW: Investigate where to place this, whether to do it in this command, or automatically detect it in the main loop.
   process.chdir(nextWorkingDirectory);
 
-  return context.with({
+  return state.with({
     workingDirectory: nextWorkingDirectory,
   });
 };

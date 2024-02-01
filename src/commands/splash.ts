@@ -36,7 +36,7 @@ async function fetchDeveloperHeadlines(): Promise<string[]> {
     }
 
     return storyHeadlines;
-  } catch (error) {
+  } catch {
     return [];
   }
 }
@@ -62,6 +62,7 @@ const splash: Command = async () => {
     Output.write({
       text: headline,
       variant: LineVariant.ListItem,
+      clip: true,
     });
   }
 };

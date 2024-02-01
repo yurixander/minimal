@@ -1,4 +1,4 @@
-import { Context } from "./context.js";
+import { State } from "./state.js";
 import Output from "./output.js";
 import {
   CommandDef,
@@ -22,7 +22,7 @@ export function createCommandMap(
 }
 
 export async function initializeFeatures(
-  initialContext: Context,
+  initialState: State,
   features: FeatureDef[]
 ): Promise<Map<string, FeatureListener>> {
   const map = new Map<string, FeatureListener>();
@@ -31,7 +31,7 @@ export async function initializeFeatures(
     const didInitialize = await safelyTry(
       async () =>
         feature.initializer !== undefined
-          ? await feature.initializer(initialContext)
+          ? await feature.initializer(initialState)
           : true,
       Promise.resolve(false)
     );
