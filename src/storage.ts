@@ -95,13 +95,13 @@ abstract class Storage {
     Storage.write(storeName, patchedStore);
   }
 
-  static getOrDefault<Key extends StoreName, Value extends RuntimeType>(
-    storeKey: Key,
-    key: StorageKey<Key>,
+  static getOrDefault<Name extends StoreName, Value extends RuntimeType>(
+    storeName: Name,
+    key: StorageKey<Name>,
     defaultValue: StaticType<Value>,
     type: Value
   ): StaticType<Value> {
-    const store = Storage.read(storeKey);
+    const store = Storage.read(storeName);
 
     // FIXME: Proper type for this value, it should be `JsonValue | undefined`.
     const value = store[key];

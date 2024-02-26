@@ -16,16 +16,16 @@ import {
   LogLevel,
 } from "../types.js";
 import { getEnvVariable, joinSegments } from "../util.js";
+import StorageRef from "../storageRef.js";
 
-// TODO: Use Storage API instead of global state.
-const messageHistory: ChatCompletionMessageParam[] = [
+const messageHistory = new StorageRef(
+  "gpt",
+  "context",
   // TODO: Add the argument/option to specify a custom system prompt for the user.
   // FIXME: When the message history limit is exceeded, this prompt message is removed from the history. This is not ideal, as it should be kept in the history, and the oldest message should be removed instead.
-  {
-    role: "system",
-    content: GPT_SYSTEM_PROMPT,
-  },
-];
+  [{ role: "system", content: GPT_SYSTEM_PROMPT }],
+  "array"
+);
 
 // TODO: Need a timeout system for data fetching. Perhaps even better would be an entire tiny framework for handling async data fetching, with timeouts, retries, and other features, that are all automatically handled by the framework and inform the user.
 async function streamGptResponse(
@@ -45,11 +45,12 @@ async function streamGptResponse(
   );
 
   // Limit the message history to a certain length.
-  if (messageHistory.length >= maxMessageHistoryLength) {
-    messageHistory.shift();
+  if (messageHistory.value.length >= maxMessageHistoryLength) {
+    messageHistory.value.shift();
   }
 
-  messageHistory.push(newMessage);
+  // Save the input in the message history.
+  messageHistory.transform((messages) => messages.concat(newMessage));
 
   // TODO: Give this an appropriate type.
   const model = Config.read(ConfigKey.GptModel, "string");
@@ -62,7 +63,7 @@ async function streamGptResponse(
     model,
     // TODO: Add cutoff '...' to the end of the output if it exceeds the max tokens.
     max_tokens: maxTokens,
-    messages: messageHistory,
+    messages: messageHistory.value,
   });
 
   let isFirstChunk = true;
@@ -96,10 +97,9 @@ async function streamGptResponse(
 
   // TODO: Account for max message history length. Might need some custom data structure to abstract this, perhaps a queue with a max length.
   // Save the response in the message history.
-  messageHistory.push({
-    role: "system",
-    content: chunks.join(""),
-  });
+  messageHistory.transform((messages) =>
+    messages.concat({ role: "system", content: chunks.join("") })
+  );
 
   Output.newLine();
 }
@@ -124,17 +124,12 @@ const gpt: Command = async (args) => {
   }
 
   // TODO: Need to maintain context between calls to this command, and add an argument/option to reset the context. Need an API to handle persistent contexts like that, in a functional way.
-  let openai = new OpenAI({
-    apiKey,
-  });
+  let openai = new OpenAI({ apiKey });
 
   const gptResponse = await streamGptResponse(openai, prompt);
 
   if (gptResponse instanceof Error) {
-    Output.write({
-      text: gptResponse.message,
-      logLevel: LogLevel.Error,
-    });
+    Output.write({ text: gptResponse.message, logLevel: LogLevel.Error });
   }
 };
 

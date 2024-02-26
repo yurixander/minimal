@@ -11,7 +11,12 @@ export enum ConfigKey {
   SplashFetchNews = "splashFetchHeadlines",
 }
 
-export type JsonValue = string | number | boolean;
+export type JsonPrimitive = string | number | boolean;
+
+export type JsonValue =
+  | JsonPrimitive
+  | JsonPrimitive[]
+  | Record<string, JsonPrimitive>;
 
 export type StaticType<T extends RuntimeType> = T extends "string"
   ? string
@@ -19,13 +24,17 @@ export type StaticType<T extends RuntimeType> = T extends "string"
   ? number
   : T extends "boolean"
   ? boolean
+  : T extends "array"
+  ? JsonValue[]
+  : T extends "object"
+  ? JsonValue
   : never;
 
 export type ConfigContents = {
   [key in ConfigKey]: JsonValue;
 };
 
-export type RuntimeType = "string" | "number" | "boolean";
+export type RuntimeType = "string" | "number" | "boolean" | "array" | "object";
 
 // TODO: Need to validate that the existing config file is valid JSON & also has all the required keys, this should happen on startup. Perhaps define a boot function that performs validation and sanity checks, and then starts the app.
 abstract class Config {
@@ -75,9 +84,7 @@ abstract class Config {
   }
 
   static readAsString(key: ConfigKey): string {
-    const value = Config.readContents()[key];
-
-    return value.toString();
+    return Config.readContents()[key].toString();
   }
 
   static read<Value extends RuntimeType>(

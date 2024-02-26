@@ -1,5 +1,11 @@
 import assert from "node:assert";
-import { ConfigKey, JsonValue, RuntimeType, StaticType } from "./config.js";
+import {
+  ConfigKey,
+  JsonValue,
+  JsonPrimitive,
+  RuntimeType,
+  StaticType,
+} from "./config.js";
 import { INITIAL_STATE, ROOT_PROMPT } from "./constants.js";
 import Output from "./output.js";
 import { EnvVariableKey, LineVariant, LogLevel } from "./types.js";
@@ -163,4 +169,43 @@ export function clipString(string: string, maxLength: number): string {
   }
 
   return string.slice(0, maxLength - 3) + "...";
+}
+
+export function isJsonPrimitive(value: unknown): value is JsonPrimitive {
+  return (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    value === null
+  );
+}
+
+export function convertArrayToJsonValue(array: unknown[]): JsonValue[] | null {
+  if (array.length === 0) {
+    return [];
+  }
+
+  const firstElement = array[0];
+
+  if (isJsonPrimitive(firstElement)) {
+    return array as JsonValue[];
+  }
+
+  return null;
+}
+
+export function expect<T>(value: T | null | undefined, reason: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Value was null or undefined: ${reason}`);
+  }
+
+  return value;
+}
+
+export function unwrap<T>(value: T | null | undefined): T {
+  if (value === null || value === undefined) {
+    throw new Error("Value was null or undefined");
+  }
+
+  return value;
 }
